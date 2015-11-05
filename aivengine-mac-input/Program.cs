@@ -6,12 +6,21 @@ namespace Aiv.Engine.Input
 {
 	class MainClass
 	{
+
+		const int HIDJoystick = 0x04;
+		const int HIDGamePad = 0x05;
+		const int HIDMultiAxis = 0x08;
+		const int HIDWheel = 0x38;
+
+		static MacNative.IOHIDDeviceCallback DeviceAddedCallback;
+		static MacNative.IOHIDDeviceCallback DeviceRemovedCallback;
+		static MacNative.IOHIDValueCallback DeviceInputCallback;
+
 		public static void Main (string[] args)
 		{
 			Console.WriteLine ("Hello World!");
 
-			MacNative.IOHIDDeviceCallback DeviceAddedCallback;
-			MacNative.IOHIDDeviceCallback DeviceRemovedCallback;
+
 
 
 			System.IntPtr runLoop = MacNative.CFRunLoopGetMain ();
@@ -28,6 +37,8 @@ namespace Aiv.Engine.Input
 			DeviceRemovedCallback = DeviceRemoved;
 			MacNative.IOHIDManagerRegisterDeviceRemovalCallback (hidManager, DeviceRemovedCallback, IntPtr.Zero);
 
+			DeviceInputCallback = InputReceived;
+
 			Console.WriteLine (hidManager);
 
 			MacNative.IOHIDManagerScheduleWithRunLoop (hidManager, runLoop, MacNative.CFString ("kCFRunLoopDefaultMode"));
@@ -43,11 +54,20 @@ namespace Aiv.Engine.Input
 		static void DeviceAdded (System.IntPtr context, System.IntPtr res, System.IntPtr sender, System.IntPtr device)
 		{
 			if (MacNative.IOHIDDeviceOpen (device, IntPtr.Zero) == IntPtr.Zero) {
-				
-				System.IntPtr product = MacNative.IOHIDDeviceGetProperty (device, MacNative.CFString ("Product"));
-				string productName = MacNative.CString (product);
 
-				Console.WriteLine ("Device Opened " + productName);
+				if (MacNative.IOHIDDeviceConformsTo (device, 0x01, HIDJoystick) ||
+				    MacNative.IOHIDDeviceConformsTo (device, 0x01, HIDGamePad) ||
+				    MacNative.IOHIDDeviceConformsTo (device, 0x01, HIDMultiAxis) ||
+				    MacNative.IOHIDDeviceConformsTo (device, 0x01, HIDWheel)) {
+				
+					System.IntPtr product = MacNative.IOHIDDeviceGetProperty (device, MacNative.CFString ("Product"));
+					string productName = MacNative.CString (product);
+
+					Console.WriteLine ("Device Opened " + productName);
+
+					MacNative.IOHIDDeviceRegisterInputValueCallback (device, DeviceInputCallback, device);
+					MacNative.IOHIDDeviceScheduleWithRunLoop(device, MacNative.CFRunLoopGetCurrent (), MacNative.CFString ("kCFRunLoopDefaultMode"));
+				}
 			}
 
 
@@ -57,6 +77,41 @@ namespace Aiv.Engine.Input
 		{
 			Console.WriteLine ("Device Removed");
 		}
+
+		static void InputReceived(System.IntPtr context, System.IntPtr res, System.IntPtr sender, System.IntPtr value) {
+			
+			System.IntPtr element = MacNative.IOHIDValueGetElement (value);
+			System.IntPtr cookie = MacNative.IOHIDElementGetCookie (element);
+			ushort page = MacNative.IOHIDElementGetUsagePage (element);
+			int usage = MacNative.IOHIDElementGetUsage (element);
+
+			//Console.WriteLine ("Input received from " + context.ToInt64() + " " + page + "/" + usage);
+			switch (page) {
+			case 0x01:
+				//Console.WriteLine ("Axis");
+				switch (usage) {
+				// X
+				case 0x30:
+					ManageAxis ("X", cookie, element, value);
+					break;
+				case 0x31:
+					ManageAxis ("Y", cookie, element, value);
+					break;
+				}
+				break;
+			case 0x09:
+				
+				Console.WriteLine ("Buttons [{0}] {1}", cookie, MacNative.IOHIDValueGetIntegerValue(value));
+				break;
+			}
+		}
+
+		static void ManageAxis(string axis, System.IntPtr cookie, System.IntPtr element, System.IntPtr value) {
+			int min = MacNative.IOHIDElementGetLogicalMin (element).ToInt32();
+			int max = MacNative.IOHIDElementGetLogicalMax (element).ToInt32();
+			Console.WriteLine ("Axis {0} [{1}] {2} => {3}/{4}", axis, cookie, MacNative.IOHIDValueGetIntegerValue(value), min, max);
+		}
+
 	}
 
 
@@ -98,7 +153,7 @@ namespace Aiv.Engine.Input
 		public static extern void IOHIDManagerRegisterDeviceRemovalCallback (System.IntPtr manager, IOHIDDeviceCallback callback, System.IntPtr context);
 
 		[DllImport (hidlib)]
-		public static extern void IOHIDManagerScheduleWithRunLoop (System.IntPtr manager, System.IntPtr clalback, System.IntPtr context);
+		public static extern void IOHIDManagerScheduleWithRunLoop (System.IntPtr manager, System.IntPtr loop, System.IntPtr context);
 
 		[DllImport (hidlib)]
 		public static extern void IOHIDManagerSetDeviceMatching (System.IntPtr manager, System.IntPtr matching);
@@ -111,6 +166,36 @@ namespace Aiv.Engine.Input
 
 		[DllImport (hidlib)]
 		public static extern System.IntPtr IOHIDDeviceGetProperty (System.IntPtr device, System.IntPtr key);
+
+		[DllImport (hidlib)]
+		public static extern bool IOHIDDeviceConformsTo (System.IntPtr device, ushort page, int usage);
+
+		[DllImport (hidlib)]
+		public static extern void IOHIDDeviceRegisterInputValueCallback (System.IntPtr device, IOHIDValueCallback callback, System.IntPtr context);
+
+		[DllImport (hidlib)]
+		public static extern void IOHIDDeviceScheduleWithRunLoop (System.IntPtr device, System.IntPtr loop, System.IntPtr context);
+
+		[DllImport (hidlib)]
+		public static extern System.IntPtr IOHIDValueGetElement (System.IntPtr ptr);
+
+		[DllImport (hidlib)]
+		public static extern ushort IOHIDElementGetUsagePage (System.IntPtr element);
+
+		[DllImport (hidlib)]
+		public static extern int IOHIDElementGetUsage (System.IntPtr element);
+
+		[DllImport (hidlib)]
+		public static extern System.IntPtr IOHIDValueGetIntegerValue (System.IntPtr element);
+
+		[DllImport (hidlib)]
+		public static extern System.IntPtr IOHIDElementGetCookie(System.IntPtr element);
+
+		[DllImport (hidlib)]
+		public static extern System.IntPtr IOHIDElementGetLogicalMax(System.IntPtr element);
+
+		[DllImport (hidlib)]
+		public static extern System.IntPtr IOHIDElementGetLogicalMin(System.IntPtr element);
 
 		public delegate void IOHIDDeviceCallback (IntPtr ctx, IntPtr res, IntPtr sender, IntPtr device);
 
