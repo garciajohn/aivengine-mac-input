@@ -1,4 +1,19 @@
-﻿using System;
+/*
+
+Copyright 2015 20tab S.r.l.
+Copyright 2015 Aiv S.r.l.
+
+Authors:
+
+  Roberto De Ioris
+  Raffaele Colace
+
+
+
+
+*/
+
+using System;
 using System.Runtime.InteropServices;
 using System.Text;
 using Aiv.Engine;
