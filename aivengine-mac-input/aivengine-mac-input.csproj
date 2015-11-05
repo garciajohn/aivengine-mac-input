@@ -4,8 +4,8 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
     <ProjectGuid>{2F23C68D-C8C6-4BF3-921E-2254D89AFCBE}</ProjectGuid>
-    <OutputType>Exe</OutputType>
-    <RootNamespace>Aiv.Engine.Input</RootNamespace>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Aiv.Engine</RootNamespace>
     <AssemblyName>aivengine-mac-input</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
@@ -31,10 +31,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="aivengine">
+      <HintPath>..\..\aivengine\aivengine\bin\Release\aivengine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Input.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
